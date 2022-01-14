@@ -16,6 +16,7 @@ let g_fromKiosk = null;
 let g_alternativePath = null;
 
 let g_popWaitingTimeSec = 30;
+let g_reservationTime = null;
 
 window.addEventListener("message", function(event) {
   // if(window.location.origin != event.origin) {
@@ -77,6 +78,36 @@ window.onload = function () {
                         startProcess(result);
                     }
                 }
+                // ysjung outbound
+                else if(hasParam("r") == true){
+                    // get frame_info
+                    g_callType = "OUTBOUND";
+
+                    var roomId = getParameterByName("r");
+                    setRoomId(roomId);
+                    var subsId = getSubsIdFromRoomId(roomId);
+
+                    // todo : get client info from api
+                    var outBoundData = {
+                        userId : "2" + Math.floor(Math.random()*10000)+1,
+                        userName : "예약고객",
+                        subsId : subsId,
+                        subsName : "미래에셋 영상상담",
+                        siteId : "0",
+                        siteName : "mobile",
+                        siteCode : "0",
+                        itemCode : "ABC",
+                        itemName : "예약상품",
+                        custFull : "00000000000",
+    					idNum : "0",
+    					ownType : "1",
+    					verify : "1",
+    					type : "1",
+    					path : "예약",
+                    }
+                    //var outBoundDataJ = JSON.stringify(outBoundData);
+                    startProcess(outBoundData);
+                }
             }
             else {
                 // alert("업무시간이 종료되었습니다.");
@@ -122,28 +153,38 @@ window.onload = function () {
         }
     });
 
+    window.history.pushState({page: 1}, "", "");
+    window.onpopstate = function(evnet){
+        console.log("onpopstate", event);
+
+        if(event){
+            window.history.pushState({page: 1}, "", "");
+            closeFrame();
+        }
+    }
+
 
 };
 
-function getObject(subsId){
-  let result = {
-    "userId"   : "2" + Math.floor(Math.random()*10000)+1,
-    "userName" : "테스트고객",
-    "roomType" : "once",
-    "siteCode" : "0",
-    "siteName" : "mobile",
-    "subsId"   : subsId,
-    "subsName" : "테스트회사",
-    "itemCode" : "ABCDE",
-    "itemName" : "테스트상품",
-    "shopUrl" : "https://dev21himart.coview.co.kr:4433/cl/images/item-image.png",
-    "shopCode" : "A-18293",
-    "shopName" : "[SK매직] SK매직 식기세척기 A-18293 [빌트인/16인용]",
-    "shopListPrice" : "3990000",
-    "shopPrice" : "2990000",
-  }
-  return result
-}
+// function getObject(subsId){
+//   let result = {
+//     "userId"   : "2" + Math.floor(Math.random()*10000)+1,
+//     "userName" : "테스트고객",
+//     "roomType" : "once",
+//     "siteCode" : "0",
+//     "siteName" : "mobile",
+//     "subsId"   : subsId,
+//     "subsName" : "테스트회사",
+//     "itemCode" : "ABCDE",
+//     "itemName" : "테스트상품",
+//     "shopUrl" : "https://dev21himart.coview.co.kr:4433/cl/mobile/images/item-image.png",
+//     "shopCode" : "A-18293",
+//     "shopName" : "[SK매직] SK매직 식기세척기 A-18293 [빌트인/16인용]",
+//     "shopListPrice" : "3990000",
+//     "shopPrice" : "2990000",
+//   }
+//   return result
+// }
 
 function hasParam(key) {
   let result = false;
@@ -221,7 +262,13 @@ async function startCoview(data, callback){
     //ysjung
     webCoreInit(data.userId, data.userId, data.userName, "client", data.subsId, null);
     setSubframeMode(0);
-    startTimer();
+
+    if(g_callType != "OUTBOUND"){
+        startTimer();
+    }
+
+
+
     // org
     // g_isIos = 0;
     // if(g_isIos){
@@ -311,11 +358,9 @@ async function startCoview(data, callback){
   }
 
   function closeProcess(){
-
     if(isLoadDocshare == true){
       tripath_disconnect();
     }
-
 
     if(resultCode != null){
       frameRoomId = null;
@@ -330,6 +375,12 @@ async function startCoview(data, callback){
         resultCode = null;
         timer = null;
       }
+    }
+
+    // ysjung for outbound
+    if(g_callType == "OUTBOUND"){
+        console.log("closeProcess!!!!!!!!!!!!");
+        location.replace("/cl/end");
     }
   }
 
@@ -573,7 +624,7 @@ async function startCoview(data, callback){
       let star = document.createElement("img");
       star.className = "rate1";
       star.name = num;
-      star.src = "/cl/images/ic-mark-on.png";
+      star.src = "/cl/mobile/images/ic-mark-on.png";
       rate1.appendChild(star);
 
       star.addEventListener("click", function(e) {
@@ -590,7 +641,8 @@ async function startCoview(data, callback){
     if(isExpand == true && isExpandView == false){
       isExpandView = true;
       setMainView();
-      setRemoteView(true);
+      //setRemoteView(true); //ykjung
+      setRemoteView(false);
       setHeaderView();
       setToolsView(false);
       // setRemoteVideoView();
@@ -610,29 +662,31 @@ async function startCoview(data, callback){
   function setMainView(){
     let isVertical = getIsVertical();
     if(isVertical == true && isExpandView == false){
-      $("#mainChatArea").css("height", "61px");
+      //$("#mainChatArea").css("height", "61px");
       $("#mainViewArea").css("height", "100%");
     }
     else if(videoShareId != null || imageShareId != null){
-      //$("#mainChatArea").css("height", "auto");
+      //$("#mainChatArea").css("height", "100%");
       $("#mainViewArea").css("height", "100%");
     }
     else{
-      //$("#mainChatArea").css("height", "auto");
+     // $("#mainChatArea").css("height", "100%");
       $("#mainViewArea").css("height", "auto");
     }
   }
 
+  // 1117 ykjung
   function setRemoteView(isRemoteMode){
     toggleExpandButton(false);
 
     let canvasId = getSelectedCanvas();
     let mainViewArea = document.getElementById(canvasId);
+    console.log(mainViewArea);
 
     let minWidth = mainViewArea.clientWidth;
     let minHeight = mainViewArea.clientHeight;
     let isVertical = minHeight/minWidth;
-    minHeight = isVertical > 1 ? minHeight : "calc(100% - 61px)";
+    //minHeight = isVertical > 1 ? minHeight : "calc(100% - 61px)";
     let maxWidth = isVertical > 1 ? "51px" : "110px";
     let maxHeight = isVertical > 1 ? "91px" : "62px";
     let maxHeightNum = maxHeight.split("px");
@@ -640,18 +694,18 @@ async function startCoview(data, callback){
 
     if(isRemoteMode == true){
       $('#mainHeader').css('height', headerHeight + 22 + "px");
-      $('#mainViewArea').addClass('chat_mode_animation');
+      //$('#mainViewArea').addClass('chat_mode_animation');
       $('#mainViewArea').css('width', maxWidth);
       $('#mainViewArea').css('height', maxHeight);
       $('#mainViewArea').css('max-height', maxHeight);
-      $('#mainViewArea').css('min-height', maxHeight);
+      //$('#mainViewArea').css('min-height', maxHeight);
       $("#mainViewArea").click(function(){
         let inputText = document.getElementById("chatInputValue");
         inputText.value = "";
         inputText.style.height = "auto";
-        setChatViewSize();
+        //setChatViewSize();
 
-        $('#mainViewArea').css('min-height', minHeight);
+        //$('#mainViewArea').css('min-height', minHeight);
         toggleExpandDisplay(false);
         setMainVideoViewRect(mainVideoId, minWidth);
       });
@@ -659,12 +713,13 @@ async function startCoview(data, callback){
       toggleExpandButton(true);
     }
     else if(isRemoteMode == false){
-      $('#mainViewArea').removeClass('chat_mode_animation');
-      // $('#mainViewArea').css('width', "100%");
-      // $('#mainViewArea').css('height', "auto");
-      // $('#mainViewArea').css('max-height', "calc(100% - 61px)");
-      $("#mainViewArea").off("click");
-      toggleExpandButton(false);
+      //$('#mainHeader').css('height', "84px");
+      //$('#mainViewArea').removeClass('chat_mode_animation');
+      //$('#mainViewArea').css('width', "100%");
+      //$('#mainViewArea').css('height', "auto");
+      //$('#mainViewArea').css('max-height', "calc(100% - 61px)");
+      //$("#mainViewArea").off("click");
+      //toggleExpandButton(false);
     }
   }
 
@@ -678,7 +733,7 @@ async function startCoview(data, callback){
       let mainContainer = document.getElementById(mediaViewType.containerId);
       let expandButton = document.createElement('img');
       expandButton.id = "expandButton";
-      expandButton.src = "/cl/images/btn-expand.png";
+      expandButton.src = "/cl/mobile/images/btn-expand.png";
       expandButton.style.width = "35px";
       expandButton.style.height = "35px";
       expandButton.style.position = "absolute";
@@ -702,64 +757,73 @@ async function startCoview(data, callback){
     var mainViewContainer = document.getElementById("mainViewArea");
     var chatViewContainer = document.getElementById("mainChatArea");
 
-    if(g_fromKiosk){return};
+    if(g_fromKiosk){
+        headerContainer.style.left = "451px";
+        headerContainer.style.top = "22px";
+        //headerContainer.style.width = "calc(100% - 451px)";
+        headerContainer.style.background = "transparent";
+      return;
+    }
 
     var height = headerContainer.clientHeight;
 
-    if(isExpandView == true){
-      headerContainer.style.height = height + "px";
-      headerContainer.style.backgroundImage = "none";
-      headerContainer.style.backgroundColor = "#000000";
-      mainViewContainer.style.display = "none";
-      chatViewContainer.style.position = "absolute";
-      chatViewContainer.style.top = height + "px";
-    }
-    else if(isExpandView == false){
-      headerContainer.style.height = 61 + "px";
-      headerContainer.style.backgroundImage = "linear-gradient(180deg,#000000aa,#00000000)";
-      headerContainer.style.backgroundColor = "transparent";
-      mainViewContainer.style.display = "flex";
-      chatViewContainer.style.position = "relative";
-      chatViewContainer.style.top = "0px";
-    }
+    // 확장 컨트롤 필요없을것 같음!
+    // if(isExpandView == true){
+    //   headerContainer.style.height = height + "px";
+    //   headerContainer.style.backgroundImage = "none";
+    //   headerContainer.style.backgroundColor = "#000000";
+    //   mainViewContainer.style.display = "none";
+    //   chatViewContainer.style.position = "absolute";
+    //   chatViewContainer.style.top = height + "px";
+    // }
+    // else if(isExpandView == false){
+    //   headerContainer.style.height = 61 + "px";
+    //   headerContainer.style.backgroundImage = "linear-gradient(180deg,#000000aa,#00000000)";
+    //   headerContainer.style.backgroundColor = "transparent";
+    //   mainViewContainer.style.display = "flex";
+    //   chatViewContainer.style.position = "relative";
+    //   chatViewContainer.style.top = "0px";
+    // }
   }
 
-  function setToolsView(isView){
-    if(isView == true){
-      $(".frame_main_tools").css("display", "flex");
-      if(isVideo == true){
-        $("#subVideoArea").show();
-      }
-    }
-    else{
-      $(".frame_main_tools").css("display", "none");
-      if(isVideo == true){
-        $("#subVideoArea").hide();
-      }
-    }
-  }
+  // function setToolsView(isView){
+  //   if(isView == true){
+  //     $(".frame_main_tools").css("display", "flex");
+  //     if(isVideo == true){
+  //       $("#subVideoArea").show();
+  //     }
+  //   }
+  //   else{
+  //     $(".frame_main_tools").css("display", "none");
+  //     if(isVideo == true){
+  //       $("#subVideoArea").hide();
+  //     }
+  //   }
+  // }
 
-  function setRemoteVideoView(){
-    var mediaViewType = viewType.REMOTE;
-    let mainContainer = document.getElementById(mediaViewType.containerId);
-    mainContainer.style.display = "flex";
+  // NOT USE
+  // function setRemoteVideoView(){
+  //   console.log('it works!');
+  //   var mediaViewType = viewType.REMOTE;
+  //   let mainContainer = document.getElementById(mediaViewType.containerId);
+  //   mainContainer.style.display = "flex";
 
-    if(mainVideoId != null){
-      var mainMedia = getMediaWithId(mainVideoId);
-      setVideoView(mainMedia.id, mainMedia.stream, mainMedia.muted, mediaViewType);
-    }
-    else{
-      mainContainer.style.width = "calc(100% - 30px)";
-      mainContainer.style.height = "calc(100% - 30px)";
-    }
+  //   if(mainVideoId != null){
+  //     var mainMedia = getMediaWithId(mainVideoId);
+  //     setVideoView(mainMedia.id, mainMedia.stream, mainMedia.muted, mediaViewType);
+  //   }
+  //   else{
+  //     //mainContainer.style.width = "calc(100% - 30px)";
+  //     //mainContainer.style.height = "calc(100% - 30px)";
+  //   }
 
-    let expandButton = document.createElement('img');
-    expandButton.src = "/cl/images/btn-expand.png";
-    mainContainer.appendChild(expandButton);
-    expandButton.addEventListener("click", function(e) {
-      toggleExpandDisplay(false);
-    });
-  }
+  //   let expandButton = document.createElement('img');
+  //   expandButton.src = "/cl/mobile/images/btn-expand.png";
+  //   mainContainer.appendChild(expandButton);
+  //   expandButton.addEventListener("click", function(e) {
+  //     toggleExpandDisplay(false);
+  //   });
+  // }
 
   function removeRemoteVideoView(){
     resetView(viewType.REMOTE);
@@ -788,11 +852,11 @@ async function startCoview(data, callback){
     $("#subsName").html(subsName);
     $("#agentName").html(userName);
 
-    if(g_fromKiosk){
-        $(".frame_main_name").css("color", "#f2760a");
-        $(".frame_main_name .subs_name").css("border", "1px solid #f2760a");
+    // if(g_fromKiosk){
+    //     $(".frame_main_name").css("color", "#f2760a");
+    //     $(".frame_main_name .subs_name").css("border", "1px solid #f2760a");
 
-    }
+    // }
   }
 
   function setSubframeMode(mode) {
@@ -805,23 +869,29 @@ async function startCoview(data, callback){
     $(".frame_sub_cancel_btn").off("click");
 
     if(mode == 0){
-        if(g_fromKiosk){
-            $("#clientFrame").addClass("kiosk_mode");
-            $(".frame_sub_header").hide();
-            $(".frame_sub_contents").hide();
-            $(".frame_sub_cancel").hide();
+      if(g_fromKiosk){
+          $("#clientFrame").addClass("kiosk_mode");
+          $(".frame_sub_header").addClass("hide");
+          $(".frame_sub_contents").addClass("hide");
+          $(".frame_sub_cancel").addClass("hide");
         }
         else{
             //connecting
             $(".frame_sub_header").show();
-            $(".frame_sub_header").html("고객님의 얼굴은 보이지 않는 상태로 연결됩니다.<br/>원하실 경우 상담 중에 설정을 변경하실 수 있습니다.");
+            // $(".frame_sub_header").html("상담원 연결 중 입니다.");
             $(".frame_sub_loading").show();
-            $(".frame_sub_info").hide();
-            $(".frame_sub_cancel_btn").html("상담원 연결 취소하기");
+            // $(".frame_sub_txt").html("상담원 연결 중 입니다.");
+            $(".frame_sub_cancel_btn").html("화상 통화 취소");
             $(".frame_sub_cancel_btn").click(function(){
                 sendUserCancel();
                 closeCoview('error', 6);
             });
+            // $(".frame_sub_reservation_btn").html("예약 접수하기");
+            // $(".frame_sub_reservation_btn").click(function(){
+            //     sendUserCancel();
+            //     $("#subFrame").hide();
+            //     $("#reservationFrame").show();
+            // });
         }
     }
     else if(mode == 1){
@@ -860,24 +930,35 @@ async function startCoview(data, callback){
       let star = stars[index];
       let num = Math.floor(star.name);
       if(num > rateNum){
-        star.src = "/cl/images/ic-mark-off.png";
+        star.src = "/cl/mobile/images/ic-mark-off.png";
       }
       else{
-        star.src = "/cl/images/ic-mark-on.png";
+        star.src = "/cl/mobile/images/ic-mark-on.png";
       }
     }
   }
+
+  // function videohandler(data){
+	// 	switch (data.type){
+	// 		case "video":
+  //       switchVideo(false, data.target);
+  //       break;
+  //     case "mic":
+  //       switchMic(false, data.target);
+  //       break;
+  //   }
+  // }
 
   function switchMic(isActive){
     if(isMic == false && isActive == true){
       isMic = isActive;
       setVideoSetting("mic", isActive);
-      $(".frame_main_tools .mic").attr('src', '/cl/images/icon_sound.png');
+      $(".frame_main_tools .mic").attr('src', '/cl/mobile/images/icon_sound.png');
     }
     else if(isMic == true && isActive == false){
       isMic = isActive;
       setVideoSetting("mic", isActive);
-      $(".frame_main_tools .mic").attr('src', '/cl/images/icon_sound_2.png');
+      $(".frame_main_tools .mic").attr('src', '/cl/mobile/images/icon_sound_2.png');
     }
 
     let data = { key : "VIDEO_STATUS", type: "mic", active: isMic, userId: userInfo.userId };
@@ -888,14 +969,16 @@ async function startCoview(data, callback){
     if(isActive == true){
       isVideo = isActive;
       setVideoSetting("video", isActive);
-      $(".frame_main_tools .video").attr('src', '/cl/images/icon_video.png');
-      $("#subVideoArea").css("opacity", "1");
+      $(".frame_main_tools .video").attr('src', '/cl/mobile/images/icon_video.png');
+      //$("#subVideoArea").css("opacity", "1");
+      $("#subVideoArea").addClass("on");
     }
     else if(isActive == false){
       isVideo = isActive;
       setVideoSetting("video", isActive);
-      $(".frame_main_tools .video").attr('src', '/cl/images/icon_video_2.png');
-      $("#subVideoArea").css("opacity", "0");
+      $(".frame_main_tools .video").attr('src', '/cl/mobile/images/icon_video_2.png');
+      //$("#subVideoArea").css("opacity", "0");
+      $("#subVideoArea").removeClass("on");
     }
 
     let data = { key : "VIDEO_STATUS", type: "video", active: isVideo, userId: userInfo.userId };
@@ -959,3 +1042,83 @@ async function startCoview(data, callback){
             return false;
         }
     }
+
+
+// ysjung reservation function [[
+function reservationBtnOnclick(el, time){
+    console.log("reservationBtnOnclick", el, time);
+    $(".frame_reservation_timetable_btn").removeClass("checked");
+    el.className += " checked";
+
+    g_reservationTime = time;
+}
+
+function reservationTimetableOnlick(){
+    console.log("g_reservationTime", g_reservationTime);
+    var name = $("#reservationNameInput").val();
+    var number = $("#reservationNumberInput").val().replace(/-/gi,"");
+
+    if(number.length == 0) {
+        alert("연락처를 입력해 주시기 바랍니다.");
+        return;
+    }
+    else if(isNaN(number) == true){
+        alert("연락처가 유효 하지 않습니다.")
+        return;
+    }
+
+    if(name == ""){
+        alert("이름을 입력해주시기 바랍니다.")
+        return;
+    }
+
+    if(g_reservationTime){
+        $(".frame_loading").show();
+        var url = "/cl/reservation";
+        $.ajax({
+            url : url,
+            method : 'post',
+            data : {
+                time : g_reservationTime,
+                name : name,
+                number : number,
+            },
+            success : function (result) {
+                console.log("result", result);
+                if(result.statusCode == 200){
+                    alert("예약완료 되었습니다");
+                    closeCoview('error', 0);
+                }
+                else if(result.statusCode == 402){
+                    alert("해당 시간은 예약이 모두 완료 되었습니다\n다른시간을 선택해 주시기 바랍니다.");
+                }
+                else{
+                    alert("예약 시스템에 일시적인 오류가 발생 하였습니다\n다시 시도해주시기 바랍니다.");
+                }
+                $(".frame_loading").hide();
+            },
+            error : function (err) {
+                console.log(err.toString());
+                $(".frame_loading").hide();
+                closeCoview('error', 1);
+                // closeCoview('error', 99);
+            }
+        });
+    }
+    else{
+        alert("예약 시간을 선택해 주시기 바랍니다.")
+    }
+}
+// ysjung reservation function ]]
+
+function getSubsIdFromRoomId(roomId){
+	// 룸 번호 형태 xxxxxxx-xxxxx-xxxxx  => subsid-agentid-randomid
+	console.log("getSubsIdFromRoomId roomId : ", roomId);
+	var roomIdArr = roomId.split ('-');
+	if(roomIdArr.length == 3){
+		return roomIdArr[0];
+	}
+	else{
+		return null;
+	}
+}
