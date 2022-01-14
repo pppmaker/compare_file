@@ -118,29 +118,7 @@ let canvasDelegate = {
 var socketDelegate = new function () {
     this.coviewConnected = function(core) {
         console.log("+++++ CONNECTTED SOCKET +++++")
-
-        //ysjung outbound
-        console.log("g_callType", g_callType);
-        if(g_callType  == "OUTBOUND"){
-            var roomId = getRoomId();
-            console.log("roomId", roomId);
-
-            // outbound test
-            // webCore.room.joinRoom(roomId, "IN", navigator.userAgent, window.location.href);
-
-            // real
-            if(g_commonDirection){
-                webCore.room.joinRoom(roomId, g_commonDirection, navigator.userAgent, window.location.href);
-            }
-            else{
-                webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
-            }
-            // webCore.room.joinRoom(roomId, "IN", navigator.userAgent, window.location.href);
-        }
-        else{
-            webCore.room.requestRoomId();
-        }
-
+        webCore.room.requestRoomId();
     };
 
     this.coviewDisconnected = function(core) {
@@ -158,56 +136,15 @@ var socketDelegate = new function () {
         shareSubscribe(data);
 
         switch(data.id) {
-            case "chat":
-                let ownerId = webCore.room.getOwnerId();
-                if(data.subType == "JOIN" && data.sender == ownerId){
-                    setMainHeaderInfo(userInfo.subsName, data.senderName);
-                }
-                break;
-            case "byPassP2PMsg":
-                processP2pMsg(data);
-                break;
-
-            // for mirae
-            case "existingParticipants":
-                if(g_callType  == "OUTBOUND"){
-                    var staffId = "";
-                    var staffName = "";
-                    for(var i = 0; i < data.data.length; i++){
-                        if(data.data[i].userType == "STAFF" && data.data[i].isOwner == "true"){
-                            staffId = data.data[i].userId;
-                            staffName = data.data[i].userName;
-                            break;
-                        }
-                    }
-                    if(staffId != ""){
-                        setMainHeaderInfo(userInfo.subsName, staffName);
-
-                        var url = "/cl/staffinfo";
-                        $.ajax({
-                            url : url,
-                            method : 'post',
-                            data : {
-                                staffId : staffId,
-                            },
-                            success : function (result) {
-                                console.log("result", result);
-                                if(result.statusCode == 200){
-                                    connectDocShare(result.data);
-                                    g_alternativePath = result.alertnative;
-                                }
-                                else {
-                                    alert("상담사 정보요청 실패 하였습니다.\n다시 상담을 요청 하여 진행하여 주시기 바랍니다");
-                                }
-                            },
-                            error : function (err) {
-                                console.log(err.toString());
-                            }
-                        });
-                    }
-                }
-
-                break;
+          case "chat":
+              let ownerId = webCore.room.getOwnerId();
+              if(data.subType == "JOIN" && data.sender == ownerId){
+                setMainHeaderInfo(userInfo.subsName, data.senderName);
+              }
+              break;
+          case "byPassP2PMsg":
+              // processP2pMsg(data);
+              break;
         }
     };
 
@@ -253,16 +190,17 @@ var roomDelegate = new function() {
                 webCore.room.joinRoom(roomId, g_commonDirection, navigator.userAgent, window.location.href);
             }
             else{
-                // if(g_fromKiosk){
-                //     //webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
-                //     webCore.room.joinRoom(roomId, "IN", navigator.userAgent, window.location.href);
-                // }
-                // else{
-                //     webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
-                // }
-
-                // webCore.room.joinRoom(roomId, "IN", navigator.userAgent, window.location.href);
-                webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
+                if(g_fromKiosk){
+                    if(g_kioskDirection == "OUT"){
+                        webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
+                    }
+                    else{
+                        webCore.room.joinRoom(roomId, "IN", navigator.userAgent, window.location.href);
+                    }
+                }
+                else{
+                    webCore.room.joinRoom(roomId, "OUT", navigator.userAgent, window.location.href);
+                }
             }
           }
           else{
@@ -279,13 +217,6 @@ var roomDelegate = new function() {
 
     this.coviewJoinRoom = function(core, data) {
         console.log("coviewJoinRoom", data);
-
-        if(g_callType  == "OUTBOUND"){
-            if(data.roomId == null){
-                alert ("이미 종료된 상담 입니다\n다시 문의 해주시기 바랍니다.");
-                resRemovedRoom();
-            }
-        }
     };
 
     this.coviewLeaveRoom = function(core, data) {
@@ -517,11 +448,6 @@ var callDelegate = {
         console.log("coviewNewCall, mediaType: ", mediaType);
         console.log("coviewNewCall, isSip: ", isSip);
         setClientId(id);
-
-
-        // ysjung OUTBOUND
-        // uiEvent.accept();
-        webCore.call.callRequestAccepted(id, mediaType);
     },
     coviewCancelCall: function(core, id, mediaType, isSip){
         console.log("coviewCancelCall, id: ", id);
@@ -640,18 +566,13 @@ function displayLog(text, data, color) {
 function webCoreInit(loginId, userId, userName, userType, subsId, token) {
     console.log("webCoreInit", loginId, userId, userName, userType, subsId, token);
     console.log("g_fromKiosk", g_fromKiosk);
-
-    // outbound test
-    // var turnSrvAddr = g_interTurnSrvAddr;
-    var turnSrvAddr = g_extTurnSrvAddr;
-
-
-    // if(g_extTurnSrvAddr && g_fromKiosk != true){
-    //     turnSrvAddr = g_extTurnSrvAddr;
-    // }
-    // else if(g_extTurnSrvAddr && g_fromKiosk == true && g_kioskDirection == "OUT"){
-    //     turnSrvAddr = g_extTurnSrvAddr;
-    // }
+    var turnSrvAddr = g_interTurnSrvAddr;
+    if(g_extTurnSrvAddr && g_fromKiosk != true){
+        turnSrvAddr = g_extTurnSrvAddr;
+    }
+    else if(g_extTurnSrvAddr && g_fromKiosk == true && g_kioskDirection == "OUT"){
+        turnSrvAddr = g_extTurnSrvAddr;
+    }
     console.log("turnSrvAddr", turnSrvAddr);
 
     let config = {
